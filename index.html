@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriSmart - AI 智慧健康飲食顧問</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Noto Sans TC', sans-serif; }
+        html { scroll-behavior: smooth; }
+
+        .gradient-bg { background: linear-gradient(135deg, #1E7A4F 0%, #2D9B67 50%, #3DB87A 100%); }
+
+        .card-hover { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(45,155,103,0.2); }
+
+        .progress-bar { height: 12px; border-radius: 6px; background: #E5E7EB; overflow: hidden; }
+        .progress-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, #2D9B67, #3DB87A); transition: width 1s ease; }
+
+        .animate-fade-in { animation: fadeIn 0.6s ease forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .nav-link { position: relative; transition: color 0.3s; }
+        .nav-link::after { content:''; position:absolute; bottom:-2px; left:0; width:0; height:2px; background:#2D9B67; transition:width 0.3s; }
+        .nav-link:hover::after { width:100%; }
+        .nav-link:hover { color:#2D9B67; }
+
+        .section-divider { width:60px; height:4px; background:linear-gradient(90deg,#2D9B67,#3DB87A); border-radius:2px; margin:12px auto 24px; }
+
+        .ai-loading { display:flex; gap:6px; align-items:center; }
+        .ai-dot { width:10px; height:10px; border-radius:50%; background:#2D9B67; animation:aiPulse 1.4s ease-in-out infinite; }
+        .ai-dot:nth-child(2){ animation-delay:0.2s; }
+        .ai-dot:nth-child(3){ animation-delay:0.4s; }
+        @keyframes aiPulse {
+            0%,80%,100%{ transform:scale(0.7); opacity:0.5; }
+            40%{ transform:scale(1); opacity:1; }
+        }
+
+        .tag { display:inline-block; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:500; }
+        .tag-green  { background:#D1FAE5; color:#065F46; }
+        .tag-yellow { background:#FEF3C7; color:#92400E; }
+        .tag-red    { background:#FEE2E2; color:#991B1B; }
+
+        ::-webkit-scrollbar{ width:6px; }
+        ::-webkit-scrollbar-track{ background:#f1f1f1; }
+        ::-webkit-scrollbar-thumb{ background:#2D9B67; border-radius:3px; }
+    </style>
+</head>
+<body class="bg-white">
+
+<!-- ===== Navbar ===== -->
+<nav class="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 gradient-bg rounded-lg flex items-center justify-center">
+                <i class="fas fa-leaf text-white text-sm"></i>
+            </div>
+            <span class="font-bold text-xl text-gray-800">Nutri<span class="text-green-600">Smart</span></span>
+        </div>
+        <div class="hidden md:flex gap-6 text-gray-600 text-sm">
+            <a href="#analyzer"    class="nav-link">食物分析</a>
+            <a href="#dashboard"   class="nav-link">健康儀表板</a>
+            <a href="#ai-menu"     class="nav-link">AI 菜單</a>
+            <a href="#encyclopedia" class="nav-link">食材百科</a>
+        </div>
+        <a href="#analyzer" class="gradient-bg text-white px-4 py-2 rounded-full text-sm font-medium hover:opacity-90 transition">立即開始</a>
+    </div>
+</nav>
+
+<!-- ===== Hero ===== -->
+<section class="pt-16 min-h-screen gradient-bg flex items-center relative overflow-hidden">
+    <div class="absolute top-20 right-10 w-64 h-64 bg-white/5 rounded-full blur-3xl"></div>
+    <div class="absolute bottom-20 left-10 w-48 h-48 bg-white/5 rounded-full blur-3xl"></div>
+
+    <div class="max-w-6xl mx-auto px-4 py-20 grid md:grid-cols-2 gap-12 items-center">
+        <div class="text-white">
+            <span class="bg-white/20 text-white text-xs px-3 py-1 rounded-full mb-4 inline-block">🤖 AI 驅動 · 科學飲食</span>
+            <h1 class="text-4xl md:text-5xl font-black leading-tight mb-6">
+                吃對食物，<br><span class="text-yellow-300">從今天開始</span>
+            </h1>
+            <p class="text-white/80 text-lg mb-8 leading-relaxed">
+                NutriSmart 結合 AI 技術與營養科學，<br>
+                幫助你分析飲食、追蹤目標、打造專屬健康菜單。
+            </p>
+            <div class="flex gap-4 flex-wrap">
+                <a href="#analyzer"  class="bg-white text-green-700 px-6 py-3 rounded-full font-bold hover:shadow-lg transition">開始分析食物</a>
+                <a href="#ai-menu"   class="border border-white/50 text-white px-6 py-3 rounded-full font-medium hover:bg-white/10 transition">AI 幫我規劃菜單</a>
+            </div>
+            <div class="flex gap-8 mt-12">
+                <div><div class="text-3xl font-black text-yellow-300">200+</div><div class="text-white/70 text-sm">台灣在地食物</div></div>
+                <div><div class="text-3xl font-black text-yellow-300">AI</div><div class="text-white/70 text-sm">智慧推薦</div></div>
+                <div><div class="text-3xl font-black text-yellow-300">即時</div><div class="text-white/70 text-sm">營養分析</div></div>
+            </div>
+        </div>
+
+        <!-- Hero Card -->
+        <div class="hidden md:flex justify-center">
+            <div class="bg-white/10 backdrop-blur-sm rounded-3xl p-6 w-80">
+                <div class="text-white text-center mb-4 font-bold text-lg">今日健康分數</div>
+                <div class="relative flex justify-center mb-4">
+                    <div class="w-40 h-40 rounded-full border-8 border-yellow-300 flex flex-col items-center justify-center bg-white/10">
+                        <div class="text-5xl font-black text-yellow-300">78</div>
+                        <div class="text-white/80 text-sm">分</div>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <div class="flex justify-between text-white/80 text-sm mb-1"><span>蛋白質</span><span>72%</span></div>
+                        <div class="progress-bar bg-white/20"><div class="progress-fill" style="width:72%"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-white/80 text-sm mb-1"><span>蔬果攝取</span><span>55%</span></div>
+                        <div class="progress-bar bg-white/20"><div class="progress-fill" style="width:55%;background:linear-gradient(90deg,#FFB347,#FFD700)"></div></div>
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-white/80 text-sm mb-1"><span>熱量控制</span><span>88%</span></div>
+                        <div class="progress-bar bg-white/20"><div class="progress-fill" style="width:88%"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wave -->
+    <div class="absolute bottom-0 left-0 right-0">
+        <svg viewBox="0 0 1200 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 80L50 72C100 64 200 48 300 40C400 32 500 32 600 36C700 40 800 48 900 52C1000 56 1100 56 1150 56L1200 56V80H0Z" fill="white"/>
+        </svg>
+    </div>
+</section>
+
+<!-- ===== Food Analyzer ===== -->
+<section id="analyzer" class="py-20 bg-white">
+    <div class="max-w-6xl mx-auto px-4">
+        <div class="text-center mb-12">
+            <span class="text-green-600 font-medium text-sm uppercase tracking-wider">智慧分析</span>
+            <h2 class="text-3xl font-black text-gray-800 mt-2">食物營養分析器</h2>
+            <div class="section-divider"></div>
+            <p class="text-gray-500">輸入你吃的食物，立即獲得詳細營養分析與健康評分</p>
+        </div>
+
+        <!-- Search -->
+        <div class="max-w-2xl mx-auto mb-8">
+            <div class="flex gap-3">
+                <div class="flex-1 relative">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="foodInput" list="foodSuggestions"
+                        placeholder="輸入食物名稱（如：雞排便當、珍珠奶茶...）"
+                        class="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:border-green-500 focus:outline-none text-gray-700">
+                    <datalist id="foodSuggestions">
+                        <option value="雞排便當"><option value="珍珠奶茶"><option value="鹹酥雞">
+                        <option value="滷肉飯"><option value="拉麵"><option value="漢堡排">
+                        <option value="薯條"><option value="雞胸肉"><option value="地瓜">
+                        <option value="糙米飯"><option value="鮭魚"><option value="水煮蛋">
+                        <option value="花椰菜"><option value="豆腐"><option value="燕麥">
+                        <option value="希臘優格"><option value="蘋果"><option value="香蕉">
+                        <option value="牛奶"><option value="沙拉">
+                    </datalist>
+                </div>
+                <button onclick="analyzeFood()" class="gradient-bg text-white px-8 py-4 rounded-2xl font-bold hover:opacity-90 transition whitespace-nowrap">分析</button>
+            </div>
+        </div>
+
+        <!-- Quick Select -->
+        <div class="max-w-2xl mx-auto mb-10">
+            <p class="text-gray-400 text-sm mb-3 text-center">快速選擇：</p>
+            <div class="flex flex-wrap gap-2 justify-center">
+                <button onclick="quickSelect('雞排便當')" class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm hover:bg-green-100 hover:text-green-700 transition">🍱 雞排便當</button>
+                <button onclick="quickSelect('珍珠奶茶')" class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm hover:bg-green-100 hover:text-green-700 transition">🧋 珍珠奶茶</button>
+                <button onclick="quickSelect('鹹酥雞')"   class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm hover:bg-green-100 hover:text-green-700 transition">🍗 鹹酥雞</button>
+                <button onclick="quickSelect('雞胸肉')"   class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm hover:bg-green-100 hover:text-green-700 transition">💪 雞胸肉</button>
+                <button onclick="quickSelect('地瓜')"     class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm hover:bg-green-100 hover:text-green-700 transition">🍠 地瓜</button>
+                <button onclick="quickSelect('鮭魚')"     class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm hover:bg-green-100 hover:text-green-700 transition">🐟 鮭魚</button>
+                <button onclick="quickSelect('薯條')"     class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm hover:bg-green-100 hover:text-green-700 transition">🍟 薯條</button>
+                <button onclick="quickSelect('花椰菜')"   class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full text-sm hover:bg-green-100 hover:text-green-700 transition">🥦 花椰菜</button>
+            </div>
+        </div>
+
+        <!-- Analysis Result -->
+        <div id="analysisResult" class="hidden animate-fade-in">
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Chart Side -->
+                <div class="bg-gray-50 rounded-3xl p-6">
+                    <h3 class="font-bold text-gray-800 text-lg mb-4" id="foodTitle">食物名稱</h3>
+                    <div class="flex justify-center mb-4">
+                        <div style="width:220px;height:220px;"><canvas id="nutritionChart"></canvas></div>
+                    </div>
+                    <!-- Legend -->
+                    <div class="flex justify-center gap-4 mb-4 text-sm">
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-blue-400 inline-block"></span>蛋白質</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span>碳水</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-red-400 inline-block"></span>脂肪</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="bg-white rounded-2xl p-3 text-center">
+                            <div class="text-2xl font-black text-blue-500" id="proteinVal">0</div>
+                            <div class="text-gray-400 text-xs">蛋白質(g)</div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-3 text-center">
+                            <div class="text-2xl font-black text-yellow-400" id="carbsVal">0</div>
+                            <div class="text-gray-400 text-xs">碳水(g)</div>
+                        </div>
+                        <div class="bg-white rounded-2xl p-3 text-center">
+                            <div class="text-2xl font-black text-red-400" id="fatVal">0</div>
+                            <div class="text-gray-400 text-xs">脂肪(g)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Side -->
+                <div class="space-y-4">
+                    <!-- Calorie + Score -->
+                    <div class="gradient-bg text-white rounded-3xl p-6">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <div class="text-white/70 text-sm">總熱量</div>
+                                <div class="text-5xl font-black" id="calorieVal">0</div>
+                                <div class="text-white/70 text-sm">大卡 (kcal)</div>
+                            </div>
+                            <div class="w-20 h-20 bg-white/20 rounded-full flex flex-col items-center justify-center">
+                                <div class="text-3xl font-black text-yellow-300" id="healthScore">0</div>
+                                <div class="text-white/70 text-xs">健康分</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Health Level -->
+                    <div class="bg-gray-50 rounded-3xl p-5">
+                        <div class="flex items-center gap-3">
+                            <div id="healthIcon" class="text-2xl">🟢</div>
+                            <div>
+                                <div id="healthLabel" class="font-bold text-gray-800">健康評級</div>
+                                <div id="healthDesc"  class="text-gray-500 text-sm">評估說明</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Suggestions -->
+                    <div class="bg-green-50 rounded-3xl p-5">
+                        <div class="font-bold text-green-800 mb-3"><i class="fas fa-lightbulb mr-2"></i>健康建議</div>
+                        <ul id="suggestionList" class="space-y-2 text-green-700 text-sm"></ul>
+                    </div>
+
+                    <!-- Alternative -->
+                    <div id="alternativeContainer" class="hidden bg-yellow-50 rounded-3xl p-5">
+                        <div class="font-bold text-yellow-800 mb-2"><i class="fas fa-exchange-alt mr-2"></i>更健康的替代選擇</div>
+                        <div id="alternativeText" class="text-yellow-700 text-sm"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-12 text-gray-400">
+            <div class="text-6xl mb-4">🥗</div>
+            <p>輸入食物名稱開始分析</p>
+        </div>
+    </div>
+</section>
+
+<!-- ===== Health Dashboard ===== -->
+<section id="dashboard" class="py-20 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-4">
+        <div class="text-center mb-12">
+            <span class="text-green-600 font-medium text-sm uppercase tracking-wider">個人化追蹤</span>
+            <h2 class="text-3xl font-black text-gray-800 mt-2">健康目標儀表板</h2>
+            <div class="section-divider"></div>
+            <p class="text-gray-500">設定個人資料，獲得專屬的每日營養目標</p>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-8">
+            <!-- Form -->
+            <div class="bg-white rounded-3xl p-8 shadow-sm">
+                <h3 class="font-bold text-gray-800 mb-6 text-lg">
+                    <i class="fas fa-user-circle text-green-600 mr-2"></i>個人資料設定
+                </h3>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-gray-600 text-sm font-medium mb-1 block">身高 (cm)</label>
+                            <input type="number" id="heightInput" value="170" min="140" max="220"
+                                class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-green-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="text-gray-600 text-sm font-medium mb-1 block">體重 (kg)</label>
+                            <input type="number" id="weightInput" value="65" min="40" max="150"
+                                class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-green-500 focus:outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-gray-600 text-sm font-medium mb-1 block">年齡</label>
+                        <input type="number" id="ageInput" value="20" min="10" max="80"
+                            class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-green-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-gray-600 text-sm font-medium mb-1 block">性別</label>
+                        <select id="genderInput" class="w-full border-2 border-gray-200 rounded-xl px-4 py-3 focus:border-green-500 focus:outline-none">
+                            <option value="male">男性</option>
+                            <option value="female">女性</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-gray-600 text-sm font-medium mb-2 block">健康目標</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="setGoal('lose',this)"     class="goal-btn bg-blue-50   border-2 border-blue-200   text-blue-700   rounded-xl py-2 text-sm font-medium transition">🔥 減重</button>
+                            <button onclick="setGoal('maintain',this)" class="goal-btn bg-green-50  border-2 border-green-500  text-green-700  rounded-xl py-2 text-sm font-medium transition">⚖️ 維持</button>
+                            <button onclick="setGoal('gain',this)"     class="goal-btn bg-orange-50 border-2 border-orange-200 text-orange-700 rounded-xl py-2 text-sm font-medium transition">💪 增肌</button>
+                        </div>
+                    </div>
+                    <button onclick="calculateDashboard()" class="w-full gradient-bg text-white py-4 rounded-xl font-bold hover:opacity-90 transition">
+                        計算我的目標
+                    </button>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="space-y-4">
+                <!-- BMI -->
+                <div class="bg-white rounded-3xl p-6 shadow-sm">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-bold text-gray-800">BMI 指數</h4>
+                        <span id="bmiTag" class="tag tag-green">正常</span>
+                    </div>
+                    <div class="flex items-end gap-3">
+                        <div class="text-5xl font-black text-green-600" id="bmiValue">22.5</div>
+                        <div class="text-gray-400 text-sm mb-1">kg/m²</div>
+                    </div>
+                    <div class="mt-4 relative">
+                        <div class="h-3 rounded-full bg-gradient-to-r from-blue-400 via-green-400 via-yellow-400 to-red-500"></div>
+                        <div id="bmiIndicator" class="absolute top-0 w-3 h-3 bg-white border-2 border-gray-800 rounded-full transform -translate-x-1/2" style="left:45%"></div>
+                        <div class="flex justify-between text-xs text-gray-400 mt-1">
+                            <span>過輕(&lt;18.5)</span><span>正常</span><span>過重(&gt;24)</span><span>肥胖(&gt;27)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Daily Target -->
+                <div class="bg-white rounded-3xl p-6 shadow-sm">
+                    <h4 class="font-bold text-gray-800 mb-4">每日建議攝取</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-green-50 rounded-2xl p-4 text-center">
+                            <div class="text-3xl font-black text-green-600" id="dailyCalories">1800</div>
+                            <div class="text-gray-500 text-xs mt-1">大卡 / 天</div>
+                        </div>
+                        <div class="bg-blue-50 rounded-2xl p-4 text-center">
+                            <div class="text-3xl font-black text-blue-600" id="dailyProtein">90</div>
+                            <div class="text-gray-500 text-xs mt-1">蛋白質(g) / 天</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weekly Chart -->
+                <div class="bg-white rounded-3xl p-6 shadow-sm">
+                    <h4 class="font-bold text-gray-800 mb-4">本週熱量趨勢</h4>
+                    <canvas id="weeklyChart" height="120"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== AI Menu ===== -->
+<section id="ai-menu" class="py-20 bg-white">
+    <div class="max-w-6xl mx-auto px-4">
+        <div class="text-center mb-12">
+            <span class="text-green-600 font-medium text-sm uppercase tracking-wider">AI 推薦</span>
+            <h2 class="text-3xl font-black text-gray-800 mt-2">AI 智慧菜單規劃</h2>
+            <div class="section-divider"></div>
+            <p class="text-gray-500">根據你的健康目標，AI 為你生成一日三餐的專屬菜單</p>
+        </div>
+
+        <div class="max-w-3xl mx-auto">
+            <!-- Goal Selector -->
+            <div class="bg-gray-50 rounded-3xl p-6 mb-6">
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <button onclick="selectMenuGoal('lose',this)"     class="menu-goal-btn p-4 rounded-2xl border-2 border-gray-200 bg-white text-center hover:border-green-400 transition">
+                        <div class="text-2xl mb-1">🔥</div><div class="text-sm font-bold text-gray-700">減重菜單</div><div class="text-xs text-gray-400">低熱量高蛋白</div>
+                    </button>
+                    <button onclick="selectMenuGoal('maintain',this)" class="menu-goal-btn p-4 rounded-2xl border-2 border-green-500 bg-green-50 text-center hover:border-green-400 transition">
+                        <div class="text-2xl mb-1">⚖️</div><div class="text-sm font-bold text-gray-700">均衡菜單</div><div class="text-xs text-gray-400">六大類食物均衡</div>
+                    </button>
+                    <button onclick="selectMenuGoal('gain',this)"     class="menu-goal-btn p-4 rounded-2xl border-2 border-gray-200 bg-white text-center hover:border-green-400 transition">
+                        <div class="text-2xl mb-1">💪</div><div class="text-sm font-bold text-gray-700">增肌菜單</div><div class="text-xs text-gray-400">高蛋白高熱量</div>
+                    </button>
+                </div>
+                <button onclick="generateMenu()" class="w-full gradient-bg text-white py-4 rounded-2xl font-bold hover:opacity-90 transition flex items-center justify-center gap-2">
+                    <i class="fas fa-robot"></i> AI 生成今日菜單
+                </button>
+            </div>
+
+            <!-- Loading -->
+            <div id="aiLoading" class="hidden bg-green-50 rounded-3xl p-8 text-center">
+                <div class="ai-loading justify-center mb-3">
+                    <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
+                </div>
+                <div class="text-green-700 font-medium">AI 正在分析你的需求並規劃菜單...</div>
+            </div>
+
+            <!-- Result -->
+            <div id="menuResult" class="hidden space-y-4 animate-fade-in">
+                <!-- Breakfast -->
+                <div class="bg-yellow-50 rounded-3xl p-6 border border-yellow-100">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 bg-yellow-400 rounded-full flex items-center justify-center text-white font-bold">早</div>
+                        <div><div class="font-bold text-gray-800">早餐</div><div class="text-gray-400 text-sm">07:00 - 09:00</div></div>
+                        <span class="ml-auto tag tag-green" id="breakfastCalTag">約 400 kcal</span>
+                    </div>
+                    <ul id="breakfastMenu" class="space-y-2"></ul>
+                </div>
+                <!-- Lunch -->
+                <div class="bg-green-50 rounded-3xl p-6 border border-green-100">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">午</div>
+                        <div><div class="font-bold text-gray-800">午餐</div><div class="text-gray-400 text-sm">12:00 - 13:30</div></div>
+                        <span class="ml-auto tag tag-green" id="lunchCalTag">約 600 kcal</span>
+                    </div>
+                    <ul id="lunchMenu" class="space-y-2"></ul>
+                </div>
+                <!-- Dinner -->
+                <div class="bg-blue-50 rounded-3xl p-6 border border-blue-100">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">晚</div>
+                        <div><div class="font-bold text-gray-800">晚餐</div><div class="text-gray-400 text-sm">18:00 - 19:30</div></div>
+                        <span class="ml-auto tag tag-green" id="dinnerCalTag">約 500 kcal</span>
+                    </div>
+                    <ul id="dinnerMenu" class="space-y-2"></ul>
+                </div>
+                <!-- Total -->
+                <div class="gradient-bg text-white rounded-3xl p-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <div class="text-white/70 text-sm">今日總熱量</div>
+                            <div class="text-4xl font-black" id="totalMenuCal">1500</div>
+                            <div class="text-white/70 text-sm">大卡</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-white/70 text-sm">由 AI 生成</div>
+                            <div class="text-xl font-bold text-yellow-300">NutriSmart AI</div>
+                            <div class="text-white/60 text-xs">基於台灣飲食習慣優化</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== Encyclopedia ===== -->
+<section id="encyclopedia" class="py-20 bg-gray-50">
+    <div class="max-w-6xl mx-auto px-4">
+        <div class="text-center mb-12">
+            <span class="text-green-600 font-medium text-sm uppercase tracking-wider">知識庫</span>
+            <h2 class="text-3xl font-black text-gray-800 mt-2">健康食材百科</h2>
+            <div class="section-divider"></div>
+            <p class="text-gray-500">認識對你有益的超級食物，點擊進入分析器</p>
+        </div>
+
+        <div class="flex gap-3 justify-center flex-wrap mb-8">
+            <button onclick="filterFoods('all',this)"     class="filter-btn bg-green-600 text-white px-5 py-2 rounded-full text-sm font-medium transition">全部</button>
+            <button onclick="filterFoods('protein',this)" class="filter-btn bg-gray-200 text-gray-600 px-5 py-2 rounded-full text-sm font-medium hover:bg-green-100 transition">💪 優質蛋白</button>
+            <button onclick="filterFoods('veggie',this)"  class="filter-btn bg-gray-200 text-gray-600 px-5 py-2 rounded-full text-sm font-medium hover:bg-green-100 transition">🥦 蔬菜類</button>
+            <button onclick="filterFoods('carb',this)"    class="filter-btn bg-gray-200 text-gray-600 px-5 py-2 rounded-full text-sm font-medium hover:bg-green-100 transition">🍚 優質碳水</button>
+            <button onclick="filterFoods('fruit',this)"   class="filter-btn bg-gray-200 text-gray-600 px-5 py-2 rounded-full text-sm font-medium hover:bg-green-100 transition">🍎 水果類</button>
+        </div>
+
+        <div id="encyclopediaGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+    </div>
+</section>
+
+<!-- ===== Footer ===== -->
+<footer class="gradient-bg text-white py-12">
+    <div class="max-w-6xl mx-auto px-4">
+        <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+            <div>
+                <div class="flex items-center gap-2 mb-2">
+                    <div class="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-leaf text-white text-sm"></i>
+                    </div>
+                    <span class="font-black text-xl">NutriSmart</span>
+                </div>
+                <p class="text-white/70 text-sm">AI 智慧飲食健康顧問平台</p>
+            </div>
+            <div class="text-center">
+                <div class="text-white/70 text-sm mb-1">創新科技期末專案</div>
+                <div class="text-white/50 text-xs">使用 AI 技術 · 台灣在地食物資料庫</div>
+            </div>
+            <div class="text-right">
+                <div class="text-white/70 text-sm">使用技術</div>
+                <div class="text-white/50 text-xs mt-1">Chart.js · Tailwind CSS · Vanilla JS</div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- ===== JavaScript ===== -->
+<script>
+// ---- 食物資料庫 ----
+const foodDB = {
+    '雞排便當': { cal:750, protein:35, carbs:85, fat:28, score:62, level:'yellow', icon:'🍱' },
+    '珍珠奶茶': { cal:380, protein:3,  carbs:68, fat:8,  score:35, level:'red',    icon:'🧋' },
+    '鹹酥雞':   { cal:420, protein:22, carbs:35, fat:22, score:45, level:'red',    icon:'🍗' },
+    '滷肉飯':   { cal:480, protein:18, carbs:72, fat:15, score:58, level:'yellow', icon:'🍚' },
+    '拉麵':     { cal:436, protein:12, carbs:65, fat:14, score:55, level:'yellow', icon:'🍜' },
+    '漢堡排':   { cal:540, protein:28, carbs:42, fat:28, score:50, level:'yellow', icon:'🍔' },
+    '薯條':     { cal:365, protein:4,  carbs:48, fat:17, score:30, level:'red',    icon:'🍟' },
+    '雞胸肉':   { cal:165, protein:31, carbs:0,  fat:3.6,score:92, level:'green',  icon:'🥩' },
+    '地瓜':     { cal:130, protein:2,  carbs:30, fat:0.1,score:88, level:'green',  icon:'🍠' },
+    '糙米飯':   { cal:216, protein:5,  carbs:45, fat:1.8,score:82, level:'green',  icon:'🍚' },
+    '鮭魚':     { cal:208, protein:20, carbs:0,  fat:13, score:85, level:'green',  icon:'🐟' },
+    '水煮蛋':   { cal:78,  protein:6,  carbs:0.6,fat:5,  score:90, level:'green',  icon:'🥚' },
+    '花椰菜':   { cal:31,  protein:2.5,carbs:6,  fat:0.4,score:95, level:'green',  icon:'🥦' },
+    '豆腐':     { cal:76,  protein:8,  carbs:2,  fat:4.5,score:88, level:'green',  icon:'🫘' },
+    '燕麥':     { cal:389, protein:17, carbs:66, fat:7,  score:80, level:'green',  icon:'🌾' },
+    '希臘優格': { cal:100, protein:17, carbs:6,  fat:0.7,score:91, level:'green',  icon:'🥛' },
+    '蘋果':     { cal:95,  protein:0.5,carbs:25, fat:0.3,score:85, level:'green',  icon:'🍎' },
+    '香蕉':     { cal:89,  protein:1.1,carbs:23, fat:0.3,score:83, level:'green',  icon:'🍌' },
+    '牛奶':     { cal:149, protein:8,  carbs:12, fat:8,  score:78, level:'green',  icon:'🥛' },
+    '沙拉':     { cal:150, protein:5,  carbs:12, fat:8,  score:88, level:'green',  icon:'🥗' },
+};
+
+const healthLevels = {
+    green:  { label:'健康優選', desc:'這是很棒的食物選擇！繼續保持。',       icon:'🟢' },
+    yellow: { label:'適量攝取', desc:'偶爾吃沒問題，請注意控制份量。',       icon:'🟡' },
+    red:    { label:'高度警示', desc:'建議少吃，選擇下方的更健康替代品。',   icon:'🔴' },
+};
+
+const suggestionMap = {
+    green:  ['繼續保持這樣的飲食選擇！','搭配適量蔬菜效果更佳','記得補充足夠水分'],
+    yellow: ['建議控制份量，不要過量','搭配蔬菜沙拉平衡營養','避免連續多餐都吃同類食物'],
+    red:    ['建議減少攝取頻率至每週 1-2 次','可嘗試下方列出的健康替代品','搭配大量蔬菜以平衡飲食'],
+};
+
+const alternatives = {
+    '珍珠奶茶': '無糖綠茶或黑咖啡（0 大卡）、氣泡水加檸檬（5 大卡）',
+    '鹹酥雞':   '烤雞排（減少 50% 脂肪）、毛豆（高蛋白低脂）',
+    '薯條':     '烤地瓜條（少 65% 脂肪）、烤南瓜塊',
+    '漢堡排':   '雞胸肉漢堡（低脂高蛋白）、蘑菇排漢堡（素食選項）',
+};
+
+// ---- AI 菜單資料 ----
+const menuData = {
+    lose: {
+        breakfast: [
+            { name:'無糖燕麥粥',   cal:180, desc:'+ 藍莓 10 顆' },
+            { name:'水煮蛋 2 顆',  cal:156, desc:'優質蛋白質來源' },
+            { name:'無糖黑咖啡',   cal:5,   desc:'提升代謝' },
+        ],
+        lunch: [
+            { name:'雞胸肉沙拉',   cal:280, desc:'大量蔬菜 + 橄欖油' },
+            { name:'地瓜半顆',     cal:65,  desc:'優質碳水補充能量' },
+            { name:'無糖豆漿',     cal:60,  desc:'補充植物蛋白' },
+        ],
+        dinner: [
+            { name:'清蒸鮭魚',     cal:200, desc:'Omega-3 豐富' },
+            { name:'燙花椰菜',     cal:31,  desc:'大量纖維促進飽足感' },
+            { name:'蒸豆腐',       cal:76,  desc:'低脂高蛋白' },
+        ],
+        totalCal:1053, breakfastCal:'約 341 kcal', lunchCal:'約 405 kcal', dinnerCal:'約 307 kcal',
+    },
+    maintain: {
+        breakfast: [
+            { name:'全麥吐司 2 片', cal:180, desc:'+ 酪梨抹醬' },
+            { name:'希臘優格',      cal:100, desc:'+ 蜂蜜 + 堅果' },
+            { name:'現榨柳橙汁',    cal:110, desc:'補充維生素 C' },
+        ],
+        lunch: [
+            { name:'糙米飯',        cal:216, desc:'一碗（200g）' },
+            { name:'清炒雞胸肉',    cal:180, desc:'+ 彩椒蔬菜' },
+            { name:'味噌湯',        cal:40,  desc:'含豆腐和海帶' },
+        ],
+        dinner: [
+            { name:'鮭魚炒飯',      cal:380, desc:'使用少量橄欖油' },
+            { name:'蔬菜沙拉',      cal:150, desc:'和風醬汁' },
+            { name:'牛奶一杯',      cal:149, desc:'補鈣助眠' },
+        ],
+        totalCal:1505, breakfastCal:'約 390 kcal', lunchCal:'約 436 kcal', dinnerCal:'約 679 kcal',
+    },
+    gain: {
+        breakfast: [
+            { name:'燕麥蛋白奶昔',  cal:450, desc:'燕麥 + 蛋白粉 + 香蕉' },
+            { name:'水煮蛋 3 顆',   cal:234, desc:'早餐高蛋白必備' },
+            { name:'全脂牛奶',      cal:149, desc:'一杯 240ml' },
+        ],
+        lunch: [
+            { name:'糙米飯（大碗）', cal:320, desc:'300g 能量補充' },
+            { name:'雞胸肉 200g',   cal:330, desc:'增肌黃金蛋白源' },
+            { name:'炒花椰菜',      cal:80,  desc:'+ 蒜頭香油' },
+            { name:'香蕉一根',      cal:89,  desc:'訓練後快速補充' },
+        ],
+        dinner: [
+            { name:'鮭魚排',        cal:350, desc:'200g 富含健康脂肪' },
+            { name:'地瓜兩顆',      cal:180, desc:'補充碳水' },
+            { name:'豆腐蛋花湯',    cal:120, desc:'額外蛋白補充' },
+        ],
+        totalCal:2302, breakfastCal:'約 833 kcal', lunchCal:'約 819 kcal', dinnerCal:'約 650 kcal',
+    },
+};
+
+// ---- 食材百科資料 ----
+const encyclopediaData = [
+    { name:'雞胸肉',   icon:'🥩', category:'protein', tag:'高蛋白',    desc:'每100g含31g蛋白質，低脂，健身首選', score:92 },
+    { name:'鮭魚',     icon:'🐟', category:'protein', tag:'Omega-3',  desc:'富含優質脂肪酸，護心防發炎',       score:90 },
+    { name:'希臘優格', icon:'🥛', category:'protein', tag:'益生菌',   desc:'高蛋白低脂，富含益生菌',           score:88 },
+    { name:'水煮蛋',   icon:'🥚', category:'protein', tag:'完整蛋白', desc:'含有所有必需氨基酸',               score:86 },
+    { name:'豆腐',     icon:'🫘', category:'protein', tag:'植物蛋白', desc:'大豆蛋白，適合素食者',             score:84 },
+    { name:'花椰菜',   icon:'🥦', category:'veggie',  tag:'超級食物', desc:'富含維生素 C 與抗氧化物',          score:95 },
+    { name:'菠菜',     icon:'🌿', category:'veggie',  tag:'鐵質豐富', desc:'葉酸和鐵質含量高',                 score:93 },
+    { name:'番茄',     icon:'🍅', category:'veggie',  tag:'茄紅素',   desc:'抗氧化茄紅素，護心護眼',           score:90 },
+    { name:'酪梨',     icon:'🥑', category:'veggie',  tag:'健康脂肪', desc:'單不飽和脂肪酸豐富',               score:88 },
+    { name:'地瓜',     icon:'🍠', category:'carb',    tag:'低 GI',    desc:'膳食纖維豐富，不易血糖飆升',       score:88 },
+    { name:'燕麥',     icon:'🌾', category:'carb',    tag:'纖維豐富', desc:'β-葡聚糖有助降低膽固醇',          score:85 },
+    { name:'糙米',     icon:'🍚', category:'carb',    tag:'全穀',     desc:'保留胚芽與麩皮的完整營養',         score:83 },
+    { name:'蘋果',     icon:'🍎', category:'fruit',   tag:'果膠',     desc:'膳食纖維高，飯前吃有飽足感',       score:85 },
+    { name:'香蕉',     icon:'🍌', category:'fruit',   tag:'鉀質豐富', desc:'運動後快速補充能量與電解質',       score:82 },
+    { name:'藍莓',     icon:'🫐', category:'fruit',   tag:'抗氧化',   desc:'花青素豐富，護腦護眼',             score:92 },
+    { name:'奇異果',   icon:'🥝', category:'fruit',   tag:'維生素C',  desc:'維生素 C 含量是柳橙的 2 倍',      score:90 },
+];
+
+// ---- 狀態變數 ----
+let nutritionChart = null;
+let weeklyChart    = null;
+let currentGoal    = 'maintain';
+let currentMenuGoal = 'maintain';
+
+// ---- 食物分析 ----
+function quickSelect(food) {
+    document.getElementById('foodInput').value = food;
+    analyzeFood();
+}
+
+function analyzeFood() {
+    const input = document.getElementById('foodInput').value.trim();
+    if (!input) return;
+    const food = foodDB[input];
+
+    if (!food) {
+        document.getElementById('emptyState').innerHTML = `
+            <div class="text-4xl mb-3">🔍</div>
+            <p class="text-gray-500">找不到「${input}」的資料</p>
+            <p class="text-gray-400 text-sm mt-1">請嘗試上方快速選擇的食物</p>`;
+        document.getElementById('analysisResult').classList.add('hidden');
+        document.getElementById('emptyState').classList.remove('hidden');
+        return;
+    }
+
+    document.getElementById('emptyState').classList.add('hidden');
+    document.getElementById('analysisResult').classList.remove('hidden');
+
+    document.getElementById('foodTitle').textContent   = `${food.icon} ${input}`;
+    document.getElementById('calorieVal').textContent  = food.cal;
+    document.getElementById('proteinVal').textContent  = food.protein;
+    document.getElementById('carbsVal').textContent    = food.carbs;
+    document.getElementById('fatVal').textContent      = food.fat;
+    document.getElementById('healthScore').textContent = food.score;
+
+    const lv = healthLevels[food.level];
+    document.getElementById('healthIcon').textContent  = lv.icon;
+    document.getElementById('healthLabel').textContent = lv.label;
+    document.getElementById('healthDesc').textContent  = lv.desc;
+
+    document.getElementById('suggestionList').innerHTML =
+        suggestionMap[food.level].map(s =>
+            `<li class="flex items-center gap-2"><i class="fas fa-check-circle text-green-500"></i>${s}</li>`
+        ).join('');
+
+    const altContainer = document.getElementById('alternativeContainer');
+    if (alternatives[input]) {
+        altContainer.classList.remove('hidden');
+        document.getElementById('alternativeText').textContent = alternatives[input];
+    } else {
+        altContainer.classList.add('hidden');
+    }
+
+    if (nutritionChart) nutritionChart.destroy();
+    nutritionChart = new Chart(
+        document.getElementById('nutritionChart').getContext('2d'),
+        {
+            type: 'doughnut',
+            data: {
+                labels: ['蛋白質', '碳水化合物', '脂肪'],
+                datasets: [{
+                    data: [food.protein * 4, food.carbs * 4, food.fat * 9],
+                    backgroundColor: ['#60A5FA','#FBBF24','#F87171'],
+                    borderWidth: 0,
+                    hoverOffset: 8,
+                }]
+            },
+            options: {
+                cutout: '65%',
+                plugins: {
+                    legend: { display:false },
+                    tooltip: { callbacks: { label: c => ` ${c.label}: ${c.raw} kcal` } }
+                }
+            }
+        }
+    );
+}
+
+document.getElementById('foodInput').addEventListener('keypress', e => {
+    if (e.key === 'Enter') analyzeFood();
+});
+
+// ---- 健康儀表板 ----
+function setGoal(goal, btn) {
+    currentGoal = goal;
+    document.querySelectorAll('.goal-btn').forEach(b => {
+        b.classList.remove('border-green-500','bg-green-50');
+        b.classList.add('border-gray-200');
+    });
+    btn.classList.add('border-green-500','bg-green-50');
+    btn.classList.remove('border-gray-200');
+}
+
+function calculateDashboard() {
+    const h   = parseFloat(document.getElementById('heightInput').value) / 100;
+    const w   = parseFloat(document.getElementById('weightInput').value);
+    const age = parseFloat(document.getElementById('ageInput').value);
+    const gender = document.getElementById('genderInput').value;
+
+    const bmi = (w / (h * h)).toFixed(1);
+    document.getElementById('bmiValue').textContent = bmi;
+
+    let bmiStatus, bmiTagClass;
+    if      (bmi < 18.5) { bmiStatus = '體重過輕'; bmiTagClass = 'tag-yellow'; }
+    else if (bmi < 24)   { bmiStatus = '正常範圍'; bmiTagClass = 'tag-green';  }
+    else if (bmi < 27)   { bmiStatus = '體重過重'; bmiTagClass = 'tag-yellow'; }
+    else                 { bmiStatus = '肥胖';     bmiTagClass = 'tag-red';    }
+
+    const bmiTag = document.getElementById('bmiTag');
+    bmiTag.textContent = bmiStatus;
+    bmiTag.className   = `tag ${bmiTagClass}`;
+
+    const bmiPos = Math.min(Math.max(((bmi - 15) / 20) * 100, 5), 95);
+    document.getElementById('bmiIndicator').style.left = bmiPos + '%';
+
+    let bmr = gender === 'male'
+        ? 88.36 + 13.4 * w + 4.8 * (h * 100) - 5.7 * age
+        : 447.6 + 9.2  * w + 3.1 * (h * 100) - 4.3 * age;
+
+    const targetCal = Math.round(
+        currentGoal === 'lose' ? bmr * 1.4 - 300 :
+        currentGoal === 'gain' ? bmr * 1.6 + 300 : bmr * 1.5
+    );
+    const targetProtein = Math.round(w * (currentGoal === 'gain' ? 1.8 : 1.2));
+
+    document.getElementById('dailyCalories').textContent = targetCal;
+    document.getElementById('dailyProtein').textContent  = targetProtein;
+
+    const days    = ['週一','週二','週三','週四','週五','週六','今天'];
+    const barData = Array.from({length:6}, () => targetCal + Math.floor(Math.random() * 400 - 200));
+    barData.push(null);
+
+    if (weeklyChart) weeklyChart.destroy();
+    weeklyChart = new Chart(
+        document.getElementById('weeklyChart').getContext('2d'),
+        {
+            type: 'bar',
+            data: {
+                labels: days,
+                datasets: [
+                    {
+                        label: '攝取熱量',
+                        data: barData,
+                        backgroundColor: barData.map(v => v === null ? 'transparent' : v > targetCal + 100 ? '#F87171' : '#34D399'),
+                        borderRadius: 8,
+                        borderSkipped: false,
+                    },
+                    {
+                        label: '目標熱量',
+                        data: Array(7).fill(targetCal),
+                        type: 'line',
+                        borderColor: '#2D9B67',
+                        borderDash: [5,5],
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        fill: false,
+                    }
+                ]
+            },
+            options: {
+                plugins: { legend: { display:false } },
+                scales: {
+                    y: { beginAtZero:false, min: targetCal - 500, grid:{ color:'#F3F4F6' } },
+                    x: { grid:{ display:false } }
+                }
+            }
+        }
+    );
+}
+
+// ---- AI 菜單 ----
+function selectMenuGoal(goal, btn) {
+    currentMenuGoal = goal;
+    document.querySelectorAll('.menu-goal-btn').forEach(b => {
+        b.classList.remove('border-green-500','bg-green-50');
+        b.classList.add('border-gray-200','bg-white');
+    });
+    btn.classList.add('border-green-500','bg-green-50');
+    btn.classList.remove('border-gray-200','bg-white');
+}
+
+function generateMenu() {
+    document.getElementById('menuResult').classList.add('hidden');
+    document.getElementById('aiLoading').classList.remove('hidden');
+
+    setTimeout(() => {
+        document.getElementById('aiLoading').classList.add('hidden');
+        const m = menuData[currentMenuGoal];
+
+        renderMealList('breakfastMenu', m.breakfast);
+        renderMealList('lunchMenu',     m.lunch);
+        renderMealList('dinnerMenu',    m.dinner);
+
+        document.getElementById('breakfastCalTag').textContent = m.breakfastCal;
+        document.getElementById('lunchCalTag').textContent     = m.lunchCal;
+        document.getElementById('dinnerCalTag').textContent    = m.dinnerCal;
+        document.getElementById('totalMenuCal').textContent    = m.totalCal;
+
+        document.getElementById('menuResult').classList.remove('hidden');
+    }, 2000);
+}
+
+function renderMealList(id, items) {
+    document.getElementById(id).innerHTML = items.map(item => `
+        <li class="flex items-center justify-between bg-white rounded-xl px-4 py-3">
+            <div>
+                <span class="font-medium text-gray-800">${item.name}</span>
+                <span class="text-gray-400 text-xs ml-2">${item.desc}</span>
+            </div>
+            <span class="text-sm text-green-600 font-bold">${item.cal} kcal</span>
+        </li>`
+    ).join('');
+}
+
+// ---- 食材百科 ----
+function filterFoods(category, btn) {
+    document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.remove('bg-green-600','text-white');
+        b.classList.add('bg-gray-200','text-gray-600');
+    });
+    btn.classList.add('bg-green-600','text-white');
+    btn.classList.remove('bg-gray-200','text-gray-600');
+    renderEncyclopedia(category);
+}
+
+function renderEncyclopedia(category) {
+    const list = category === 'all'
+        ? encyclopediaData
+        : encyclopediaData.filter(f => f.category === category);
+
+    document.getElementById('encyclopediaGrid').innerHTML = list.map(food => `
+        <div class="bg-white rounded-3xl p-5 shadow-sm card-hover cursor-pointer" onclick="jumpToAnalyzer('${food.name}')">
+            <div class="text-4xl mb-3">${food.icon}</div>
+            <div class="font-bold text-gray-800 mb-1">${food.name}</div>
+            <span class="tag tag-green text-xs mb-2 inline-block">${food.tag}</span>
+            <p class="text-gray-400 text-xs leading-relaxed">${food.desc}</p>
+            <div class="mt-3 flex items-center gap-2">
+                <div class="flex-1 progress-bar">
+                    <div class="progress-fill" style="width:${food.score}%"></div>
+                </div>
+                <span class="text-green-600 font-bold text-sm">${food.score}</span>
+            </div>
+        </div>`
+    ).join('');
+}
+
+function jumpToAnalyzer(name) {
+    document.getElementById('foodInput').value = name;
+    document.getElementById('analyzer').scrollIntoView({ behavior:'smooth' });
+    setTimeout(() => analyzeFood(), 600);
+}
+
+// ---- 初始化 ----
+window.addEventListener('load', () => {
+    calculateDashboard();
+    renderEncyclopedia('all');
+});
+</script>
+</body>
+</html>
