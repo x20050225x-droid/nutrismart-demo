@@ -623,7 +623,7 @@
                         <div class="text-2xl mb-1">💪</div><div class="text-sm font-bold text-gray-700">增肌菜單</div><div class="text-xs text-gray-400">高蛋白高熱量</div>
                     </button>
                 </div>
-                <button onclick="generateMenu()" class="w-full gradient-bg text-white py-4 rounded-2xl font-bold hover:opacity-90 transition flex items-center justify-center gap-2">
+                <button onclick="generateMenu()" id="generateMenuBtn" class="w-full gradient-bg text-white py-4 rounded-2xl font-bold hover:opacity-90 transition flex items-center justify-center gap-2">
                     <i class="fas fa-robot"></i> AI 生成今日菜單
                 </button>
             </div>
@@ -633,7 +633,7 @@
                 <div class="ai-loading justify-center mb-3">
                     <div class="ai-dot"></div><div class="ai-dot"></div><div class="ai-dot"></div>
                 </div>
-                <div class="text-green-700 font-medium">AI 正在分析你的需求並規劃菜單...</div>
+                <div class="text-green-700 font-medium" id="aiLoadingText">AI 正在分析你的需求並規劃菜單...</div>
             </div>
 
             <!-- Result -->
@@ -674,9 +674,9 @@
                             <div class="text-white/70 text-sm">大卡</div>
                         </div>
                         <div class="text-right">
-                            <div class="text-white/70 text-sm">由 AI 生成</div>
-                            <div class="text-xl font-bold text-yellow-300">NutriSmart AI</div>
-                            <div class="text-white/60 text-xs">基於台灣飲食習慣優化</div>
+                            <div class="text-white/70 text-sm" id="menuSourceLabel">由 AI 生成</div>
+                            <div class="text-xl font-bold text-yellow-300" id="menuSourceName">NutriSmart AI</div>
+                            <div class="text-white/60 text-xs" id="menuTip">基於台灣飲食習慣優化</div>
                         </div>
                     </div>
                 </div>
@@ -1039,25 +1039,87 @@ function selectMenuGoal(goal, btn) {
     btn.classList.remove('border-gray-200','bg-white');
 }
 
-function generateMenu() {
+async function generateMenu() {
     document.getElementById('menuResult').classList.add('hidden');
     document.getElementById('aiLoading').classList.remove('hidden');
 
+    const apiKey = localStorage.getItem('geminiApiKey');
+
+    if (apiKey) {
+        document.getElementById('aiLoadingText').textContent = 'Gemini AI 正在根據你的目標規劃個人化菜單...';
+        try {
+            const result = await callGeminiMenu(apiKey);
+            document.getElementById('aiLoading').classList.add('hidden');
+            applyMenuResult(result, true);
+            return;
+        } catch (err) {
+            console.warn('Gemini 菜單生成失敗，使用預設資料：', err.message);
+        }
+    } else {
+        document.getElementById('aiLoadingText').textContent = 'AI 正在分析你的需求並規劃菜單...';
+    }
+
+    // Fallback
     setTimeout(() => {
         document.getElementById('aiLoading').classList.add('hidden');
-        const m = menuData[currentMenuGoal];
-
-        renderMealList('breakfastMenu', m.breakfast);
-        renderMealList('lunchMenu',     m.lunch);
-        renderMealList('dinnerMenu',    m.dinner);
-
-        document.getElementById('breakfastCalTag').textContent = m.breakfastCal;
-        document.getElementById('lunchCalTag').textContent     = m.lunchCal;
-        document.getElementById('dinnerCalTag').textContent    = m.dinnerCal;
-        document.getElementById('totalMenuCal').textContent    = m.totalCal;
-
-        document.getElementById('menuResult').classList.remove('hidden');
+        applyMenuResult(menuData[currentMenuGoal], false);
     }, 2000);
+}
+
+async function callGeminiMenu(apiKey) {
+    const goalLabel = { lose:'減重（低熱量高蛋白）', maintain:'維持（均衡飲食）', gain:'增肌（高蛋白高熱量）' }[currentMenuGoal];
+    const targetCal  = document.getElementById('dailyCalories')?.textContent || '1800';
+    const targetProt = document.getElementById('dailyProtein')?.textContent  || '90';
+
+    const prompt = `請為一位健康目標為「${goalLabel}」的人規劃今日三餐菜單。
+條件：每日目標熱量約 ${targetCal} 大卡，蛋白質目標 ${targetProt} 克，以台灣常見食物為主。
+只回傳以下 JSON，不要任何多餘文字或 markdown：
+{"breakfast":[{"name":"食物名稱","cal":數字,"desc":"簡短說明"}],"lunch":[{"name":"食物名稱","cal":數字,"desc":"簡短說明"}],"dinner":[{"name":"食物名稱","cal":數字,"desc":"簡短說明"}],"breakfastCal":"約 XXX kcal","lunchCal":"約 XXX kcal","dinnerCal":"約 XXX kcal","totalCal":數字,"tip":"一句健康小建議"}`;
+
+    const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0.7 }
+            })
+        }
+    );
+
+    if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const raw  = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const json = raw.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    return JSON.parse(json);
+}
+
+function applyMenuResult(m, isReal) {
+    renderMealList('breakfastMenu', m.breakfast);
+    renderMealList('lunchMenu',     m.lunch);
+    renderMealList('dinnerMenu',    m.dinner);
+
+    document.getElementById('breakfastCalTag').textContent = m.breakfastCal;
+    document.getElementById('lunchCalTag').textContent     = m.lunchCal;
+    document.getElementById('dinnerCalTag').textContent    = m.dinnerCal;
+    document.getElementById('totalMenuCal').textContent    = m.totalCal;
+
+    if (isReal) {
+        document.getElementById('menuSourceLabel').textContent = '✨ Gemini AI 真實生成';
+        document.getElementById('menuSourceName').textContent  = 'Gemini 2.5 Flash';
+        document.getElementById('menuTip').textContent         = m.tip || '根據你的個人目標客製化';
+    } else {
+        document.getElementById('menuSourceLabel').textContent = '由預設資料庫生成';
+        document.getElementById('menuSourceName').textContent  = 'NutriSmart AI';
+        document.getElementById('menuTip').textContent         = '設定 Gemini Key 可獲得真實 AI 菜單';
+    }
+
+    document.getElementById('menuResult').classList.remove('hidden');
 }
 
 function renderMealList(id, items) {
@@ -1065,7 +1127,7 @@ function renderMealList(id, items) {
         <li class="flex items-center justify-between bg-white rounded-xl px-4 py-3">
             <div>
                 <span class="font-medium text-gray-800">${item.name}</span>
-                <span class="text-gray-400 text-xs ml-2">${item.desc}</span>
+                <span class="text-gray-400 text-xs ml-2">${item.desc || ''}</span>
             </div>
             <span class="text-sm text-green-600 font-bold">${item.cal} kcal</span>
         </li>`
