@@ -394,30 +394,6 @@
         </div>
 
         <div class="max-w-3xl mx-auto">
-            <!-- API Key Setup -->
-            <div class="mb-5">
-                <div class="flex items-center justify-between bg-gray-100 hover:bg-green-50 rounded-2xl px-5 py-3 cursor-pointer transition" onclick="toggleApiSetting()">
-                    <div class="flex items-center gap-2">
-                        <div id="apiStatusDot" class="w-2.5 h-2.5 rounded-full bg-gray-400 transition"></div>
-                        <span class="text-sm font-medium text-gray-700">Gemini API 金鑰設定</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <span id="apiStatusText" class="text-xs text-gray-400">未設定（將使用模擬模式）</span>
-                        <i id="apiChevron" class="fas fa-chevron-down text-gray-400 text-xs transition-transform duration-200"></i>
-                    </div>
-                </div>
-                <div id="apiSettingPanel" class="hidden mt-2 bg-gray-50 border border-gray-200 rounded-2xl p-4">
-                    <div class="flex gap-2 mb-2">
-                        <input type="password" id="geminiApiKeyInput" placeholder="貼上你的 Gemini API Key..."
-                            class="flex-1 border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none font-mono">
-                        <button onclick="saveApiKey()" class="gradient-bg text-white px-5 py-2 rounded-xl text-sm font-bold hover:opacity-90 transition whitespace-nowrap">
-                            儲存
-                        </button>
-                    </div>
-                    <p class="text-xs text-gray-400"><i class="fas fa-lock mr-1"></i>金鑰只儲存在你的瀏覽器，不會傳送至任何伺服器</p>
-                </div>
-            </div>
-
             <!-- Upload Area -->
             <div id="uploadArea" class="photo-upload-area p-10 text-center mb-6"
                 onclick="document.getElementById('photoInput').click()"
@@ -783,6 +759,9 @@ const alternatives = {
     '漢堡排':   '雞胸肉漢堡（低脂高蛋白）、蘑菇排漢堡（素食選項）',
 };
 
+// ---- Gemini API Key ----
+const GEMINI_API_KEY = 'AQ.Ab8RN6L2sPMIy0Z2a8wft0P8qUx3COucJl_O-tNUgnf782dliw';
+
 // ---- AI 菜單資料 ----
 const menuData = {
     lose: {
@@ -1048,28 +1027,17 @@ function selectMenuGoal(goal, btn) {
 async function generateMenu() {
     document.getElementById('menuResult').classList.add('hidden');
     document.getElementById('aiLoading').classList.remove('hidden');
+    document.getElementById('aiLoadingText').textContent = 'Gemini AI 正在根據你的目標規劃個人化菜單...';
 
-    const apiKey = localStorage.getItem('geminiApiKey');
-
-    if (apiKey) {
-        document.getElementById('aiLoadingText').textContent = 'Gemini AI 正在根據你的目標規劃個人化菜單...';
-        try {
-            const result = await callGeminiMenu(apiKey);
-            document.getElementById('aiLoading').classList.add('hidden');
-            applyMenuResult(result, true);
-            return;
-        } catch (err) {
-            console.warn('Gemini 菜單生成失敗，使用預設資料：', err.message);
-        }
-    } else {
-        document.getElementById('aiLoadingText').textContent = 'AI 正在分析你的需求並規劃菜單...';
-    }
-
-    // Fallback
-    setTimeout(() => {
+    try {
+        const result = await callGeminiMenu(GEMINI_API_KEY);
+        document.getElementById('aiLoading').classList.add('hidden');
+        applyMenuResult(result, true);
+    } catch (err) {
+        console.warn('Gemini 菜單生成失敗，使用預設資料：', err.message);
         document.getElementById('aiLoading').classList.add('hidden');
         applyMenuResult(menuData[currentMenuGoal], false);
-    }, 2000);
+    }
 }
 
 async function callGeminiMenu(apiKey) {
@@ -1216,35 +1184,6 @@ const scanScenarios = [
     ]},
 ];
 
-// ---- API Key 管理 ----
-function toggleApiSetting() {
-    const panel   = document.getElementById('apiSettingPanel');
-    const chevron = document.getElementById('apiChevron');
-    panel.classList.toggle('hidden');
-    chevron.style.transform = panel.classList.contains('hidden') ? '' : 'rotate(180deg)';
-}
-
-function saveApiKey() {
-    const key = document.getElementById('geminiApiKeyInput').value.trim();
-    if (!key) return;
-    localStorage.setItem('geminiApiKey', key);
-    updateApiStatus();
-    document.getElementById('apiSettingPanel').classList.add('hidden');
-    document.getElementById('apiChevron').style.transform = '';
-}
-
-function updateApiStatus() {
-    const key  = localStorage.getItem('geminiApiKey');
-    const dot  = document.getElementById('apiStatusDot');
-    const text = document.getElementById('apiStatusText');
-    if (key) {
-        dot.style.background = '#22c55e';
-        text.textContent = '✓ 已設定，將使用真實 AI 辨識';
-        text.className   = 'text-xs text-green-600 font-medium';
-        document.getElementById('geminiApiKeyInput').value = key;
-    }
-}
-
 // ---- 照片處理 ----
 function handleDragOver(e) {
     e.preventDefault();
@@ -1289,26 +1228,17 @@ function startScan(base64, mimeType) {
     scanLine.offsetHeight;
     scanLine.style.animation = 'doScanLine 2s linear forwards';
 
-    const apiKey = localStorage.getItem('geminiApiKey');
-
-    if (apiKey) {
-        callGeminiVision(base64, mimeType, apiKey)
-            .then(result => {
-                overlay.classList.add('hidden');
-                renderMarkers(result.foods, true);
-                renderSummary(result.foods, result.total_calories, true);
-            })
-            .catch(err => {
-                console.warn('Gemini API 失敗，切換至模擬模式：', err.message);
-                overlay.classList.add('hidden');
-                fallbackSimulation();
-            });
-    } else {
-        setTimeout(() => {
+    callGeminiVision(base64, mimeType, GEMINI_API_KEY)
+        .then(result => {
+            overlay.classList.add('hidden');
+            renderMarkers(result.foods, true);
+            renderSummary(result.foods, result.total_calories, true);
+        })
+        .catch(err => {
+            console.warn('Gemini API 失敗，切換至模擬模式：', err.message);
             overlay.classList.add('hidden');
             fallbackSimulation();
-        }, 2500);
-    }
+        });
 }
 
 // ---- Gemini Vision API ----
@@ -1460,7 +1390,6 @@ function resetScanner() {
 window.addEventListener('load', () => {
     calculateDashboard();
     renderEncyclopedia('all');
-    updateApiStatus();
 });
 </script>
 </body>
