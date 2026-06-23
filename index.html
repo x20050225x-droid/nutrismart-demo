@@ -1051,7 +1051,7 @@ async function callGeminiMenu(apiKey) {
 {"breakfast":[{"name":"食物名稱","cal":數字,"desc":"簡短說明"}],"lunch":[{"name":"食物名稱","cal":數字,"desc":"簡短說明"}],"dinner":[{"name":"食物名稱","cal":數字,"desc":"簡短說明"}],"breakfastCal":"約 XXX kcal","lunchCal":"約 XXX kcal","dinnerCal":"約 XXX kcal","totalCal":數字,"tip":"一句健康小建議"}`;
 
     const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
         {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -1085,7 +1085,7 @@ function applyMenuResult(m, isReal) {
 
     if (isReal) {
         document.getElementById('menuSourceLabel').textContent = '✨ Gemini AI 真實生成';
-        document.getElementById('menuSourceName').textContent  = 'Gemini 2.5 Flash';
+        document.getElementById('menuSourceName').textContent  = 'Gemini 3.5 Flash';
         document.getElementById('menuTip').textContent         = m.tip || '根據你的個人目標客製化';
     } else {
         document.getElementById('menuSourceLabel').textContent = '由預設資料庫生成';
@@ -1249,7 +1249,7 @@ async function callGeminiVision(base64, mimeType, apiKey) {
 {"foods":[{"name":"食物名稱","calories":數字,"protein":數字,"carbs":數字,"fat":數字,"health_score":數字,"x":數字,"y":數字}],"total_calories":數字}`;
 
     const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${apiKey}`,
         {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
